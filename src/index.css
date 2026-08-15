@@ -257,6 +257,193 @@ select {
   border-radius: 999px;
 }
 
-header .reset {
+.wallet {
+  display: flex;
+  align-items: center;
+  gap: 12px;
   margin-left: auto;
+}
+
+.wallet .coins {
+  font-weight: 700;
+  color: var(--gold);
+}
+
+.wallet .username {
+  color: var(--muted);
+}
+
+.auth {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 80vh;
+  gap: 20px;
+}
+
+.auth-card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 24px;
+  width: 320px;
+}
+
+.auth-tabs {
+  display: flex;
+  gap: 8px;
+}
+
+.auth-tabs button {
+  flex: 1;
+}
+
+.auth-card label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.auth-card input {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px;
+  color: var(--text);
+}
+
+.error {
+  color: #ff6b6b;
+  font-size: 13px;
+  margin: 0;
+}
+
+.sell-form {
+  display: flex;
+  align-items: flex-end;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.sell-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.sell-form input {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px;
+  color: var(--text);
+  width: 120px;
+}
+
+.market-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 14px;
+}
+
+.listing {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  text-align: center;
+}
+
+.listing .listing-label {
+  font-weight: 600;
+}
+
+.listing .price {
+  font-weight: 700;
+  color: var(--gold);
+}
+
+.listing .seller {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.card-title {
+  flex: 1;
+  min-width: 0;
+}
+
+.creature-name {
+  font-weight: 700;
+  font-size: 15px;
+}
+
+.creature-sub {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.listing-name {
+  font-weight: 700;
+  font-size: 15px;
+}
+
+.gym-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 14px;
+  margin-bottom: 20px;
+}
+
+.gym {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px;
+}
+
+.gym.next {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.gym.beaten {
+  opacity: 0.6;
+}
+
+.gym.locked {
+  opacity: 0.35;
+}
+
+.gym-name {
+  font-weight: 700;
+}
+
+.gym-sub {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.gym-leader {
+  font-size: 13px;
+}
+
+.gym-status {
+  margin-top: 8px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--muted);
 }

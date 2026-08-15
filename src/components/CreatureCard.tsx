@@ -1,4 +1,4 @@
-import { abilityById, moveById, STAT_KEYS, xpToNext } from "../game";
+import { abilityById, moveById, STAT_KEYS, xpToNext, creatureName } from "../game";
 import type { Creature, StatKey } from "../game";
 import { capitalize } from "../format";
 import { CreatureSprite } from "./CreatureSprite";
@@ -33,7 +33,10 @@ export function CreatureCard({ creature, selected = false, onSelect }: Props) {
         <CreatureSprite creature={creature} size={120} />
       </div>
       <div className="card-head">
-        <span className="elements">{p.elements.map(capitalize).join(" / ")}</span>
+        <div className="card-title">
+          <div className="creature-name">{creatureName(creature)}</div>
+          <div className="creature-sub">{p.elements.map(capitalize).join(" / ")}</div>
+        </div>
         <span className={`rarity ${p.rarity}`}>{p.rarity}</span>
         {creature.shiny ? <span className="shiny-star">★</span> : null}
       </div>
