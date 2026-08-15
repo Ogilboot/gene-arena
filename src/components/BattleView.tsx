@@ -1,7 +1,9 @@
 import { useState } from "react";
 import {
+  battleXp,
   createBattle,
   createStarter,
+  gainXp,
   moveById,
   mulberry32,
   randomSeed,
@@ -10,9 +12,16 @@ import {
 import type { BattleEvent, Creature, Side } from "../game";
 import { creatureLabel } from "../format";
 
+interface LevelUp {
+  label: string;
+  level: number;
+}
+
 interface Result {
   log: BattleEvent[];
   winner: Side | null;
+  xp: number;
+  levelUps: LevelUp[];
 }
 
 function describe(e: BattleEvent): string {
@@ -30,7 +39,12 @@ function describe(e: BattleEvent): string {
   }
 }
 
-export function BattleView({ creatures }: { creatures: Creature[] }) {
+interface Props {
+  creatures: Creature[];
+  onUpdateCreatures: (updated: Creature[]) => void;
+}
+
+export function BattleView({ creatures, onUpdateCreatures }: Props) {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [result, setResult] = useState<Result | null>(null);
 
@@ -45,12 +59,26 @@ export function BattleView({ creatures }: { creatures: Creature[] }) {
   const start = () => {
     const team = selectedIds
       .map((id) => creatures.find((c) => c.id === id))
-      .filter((c): c is Creature => c !== undefined);
+      .filter((c): c is Creature => c !== undefined)
+      .map((c) => ({ ...c }));
 
     const enemy = Array.from({ length: 3 }, () => createStarter(mulberry32(randomSeed())));
     const state = createBattle(team, enemy, 50);
     runBattle(state, undefined, mulberry32(randomSeed()));
-    setResult({ log: state.log, winner: state.winner });
+
+    const won = state.winner === 0;
+    const xp = battleXp(enemy, won);
+    const levelUps = team
+      .map((c) => {
+        const before = c.level;
+        const label = creatureLabel(c);
+        gainXp(c, xp);
+        return c.level > before ? { label, level: c.level } : null;
+      })
+      .filter((x): x is LevelUp => x !== null);
+
+    onUpdateCreatures(team);
+    setResult({ log: state.log, winner: state.winner, xp, levelUps });
   };
 
   return (
@@ -76,6 +104,15 @@ export function BattleView({ creatures }: { creatures: Creature[] }) {
           <h2 className="section-title">
             {result.winner === 0 ? "Victory" : result.winner === 1 ? "Defeat" : "Draw"}
           </h2>
+          <p>
+            Your creatures gained {result.xp} XP.
+            {result.levelUps.length > 0 ? " Level up!" : ""}
+          </p>
+          {result.levelUps.map((l) => (
+            <p key={l.label}>
+              {l.label} → Lv {l.level}
+            </p>
+          ))}
           <ol>
             {result.log.map((e, i) => (
               <li key={i}>{describe(e)}</li>

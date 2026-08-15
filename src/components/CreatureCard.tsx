@@ -1,4 +1,4 @@
-import { abilityById, moveById, STAT_KEYS } from "../game";
+import { abilityById, moveById, STAT_KEYS, xpToNext } from "../game";
 import type { Creature, StatKey } from "../game";
 import { capitalize } from "../format";
 import { CreatureSprite } from "./CreatureSprite";
@@ -22,6 +22,7 @@ export function CreatureCard({ creature, selected = false, onSelect }: Props) {
   const p = creature.phenotype;
   const ability = abilityById(p.ability);
   const moves = p.eggMoves.map((id) => moveById(id).name);
+  const xpPct = Math.min(100, Math.round(((creature.xp ?? 0) / xpToNext(creature.level)) * 100));
 
   return (
     <div
@@ -48,7 +49,10 @@ export function CreatureCard({ creature, selected = false, onSelect }: Props) {
         <div>Ability: {ability.name}</div>
         <div>Moves: {moves.join(", ")}</div>
         <div>
-          IV {p.ivSum} · Gen {creature.generation}
+          Lv {creature.level} · IV {p.ivSum} · Gen {creature.generation}
+        </div>
+        <div className="xp-bar">
+          <div className="xp-fill" style={{ width: `${xpPct}%` }} />
         </div>
       </div>
     </div>

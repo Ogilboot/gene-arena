@@ -31,6 +31,7 @@ export interface Creature {
   phenotype: Phenotype;
   shiny: boolean;
   level: number;
+  xp: number;
   generation: number;
   parents: [string | null, string | null];
 }

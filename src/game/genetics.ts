@@ -138,6 +138,10 @@ export function breed(parentA: Creature, parentB: Creature, rng: Rng): BreedOutc
 
 let idCounter = 0;
 
+function newId(): string {
+  return globalThis.crypto?.randomUUID?.() ?? `creature-${++idCounter}`;
+}
+
 export function createCreature(
   genome: Genome,
   shiny: boolean,
@@ -145,11 +149,12 @@ export function createCreature(
   parents: [string | null, string | null] = [null, null],
 ): Creature {
   return {
-    id: `creature-${++idCounter}`,
+    id: newId(),
     genome,
     phenotype: toPhenotype(genome),
     shiny,
     level: 1,
+    xp: 0,
     generation,
     parents,
   };
