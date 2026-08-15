@@ -1,17 +1,15 @@
 import { useState } from "react";
 import {
   battleXp,
-  createBattle,
   createThemedCreature,
   gainXp,
   GYMS,
-  moveById,
   mulberry32,
   randomSeed,
-  runBattle,
 } from "../game";
-import type { BattleEvent, Creature, Side } from "../game";
+import type { Creature, Gym } from "../game";
 import { capitalize, creatureLabel } from "../format";
+import { BattleArena } from "./BattleArena";
 
 interface LevelUp {
   label: string;
@@ -19,30 +17,15 @@ interface LevelUp {
 }
 
 interface Result {
-  log: BattleEvent[];
-  winner: Side | null;
+  won: boolean;
   xp: number;
   levelUps: LevelUp[];
 }
 
-function describe(e: BattleEvent): string {
-  switch (e.type) {
-    case "move": {
-      const who = e.side === 0 ? "Your" : "Enemy";
-      return `${who} creature used ${moveById(e.moveId).name} — ${e.damage} damage (${e.targetHp} HP left)`;
-    }
-    case "faint":
-      return `${e.side === 0 ? "Your" : "Enemy"} creature #${e.index + 1} fainted`;
-    case "switch":
-      return `${e.side === 0 ? "You" : "Enemy"} sent out creature #${e.index + 1}`;
-    case "win":
-      return e.side === 0 ? "You win!" : "Enemy wins!";
-    case "status":
-      if (e.status === "paralyze") {
-        return `${e.side === 0 ? "Your" : "Enemy"} creature was fully paralyzed and couldn't move`;
-      }
-      return `${e.side === 0 ? "Your" : "Enemy"} creature took ${e.amount} ${e.status} damage`;
-  }
+interface Challenge {
+  gym: Gym;
+  playerTeam: Creature[];
+  enemy: Creature[];
 }
 
 interface Props {
@@ -57,9 +40,8 @@ interface Props {
 
 export function CampaignView({ gymProgress, creatures, onReportBattle, onBeatGym }: Props) {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [challenge, setChallenge] = useState<Challenge | null>(null);
   const [result, setResult] = useState<Result | null>(null);
-  const [error, setError] = useState("");
-  const [busy, setBusy] = useState(false);
 
   const nextGym = GYMS.find((g) => g.id === gymProgress);
 
@@ -71,23 +53,24 @@ export function CampaignView({ gymProgress, creatures, onReportBattle, onBeatGym
     });
   };
 
-  const challenge = async () => {
+  const startChallenge = () => {
     if (!nextGym) return;
     const team = selectedIds
       .map((id) => creatures.find((c) => c.id === id))
       .filter((c): c is Creature => c !== undefined)
       .map((c) => ({ ...c }));
-
     const rng = mulberry32(randomSeed());
     const enemy = Array.from({ length: 3 }, () =>
       createThemedCreature(nextGym.element, nextGym.level, rng),
     );
-    const state = createBattle(team, enemy, 50);
-    runBattle(state, undefined, mulberry32(randomSeed()));
+    setChallenge({ gym: nextGym, playerTeam: team, enemy });
+    setResult(null);
+  };
 
-    const won = state.winner === 0;
-    const xp = battleXp(enemy, won);
-    const levelUps = team
+  const handleFinish = async (won: boolean) => {
+    if (!challenge) return;
+    const xp = battleXp(challenge.enemy, won);
+    const levelUps = challenge.playerTeam
       .map((c) => {
         const before = c.level;
         const label = creatureLabel(c);
@@ -95,21 +78,53 @@ export function CampaignView({ gymProgress, creatures, onReportBattle, onBeatGym
         return c.level > before ? { label, level: c.level } : null;
       })
       .filter((x): x is LevelUp => x !== null);
-    const report = team.map((c) => ({ id: c.id, level: c.level, xp: c.xp }));
+    const report = challenge.playerTeam.map((c) => ({ id: c.id, level: c.level, xp: c.xp }));
 
-    setError("");
-    setBusy(true);
     try {
       await onReportBattle(won, report);
-      if (won) await onBeatGym(nextGym.id);
-    } catch (err) {
-      setError((err as Error).message);
-    } finally {
-      setBusy(false);
+      if (won) await onBeatGym(challenge.gym.id);
+    } catch {
+      // server sync failed; still show the local result
     }
-
-    setResult({ log: state.log, winner: state.winner, xp, levelUps });
+    setResult({ won, xp, levelUps });
   };
+
+  const reset = () => {
+    setChallenge(null);
+    setResult(null);
+    setSelectedIds([]);
+  };
+
+  if (challenge) {
+    return (
+      <div>
+        <p className="section-title">
+          {challenge.gym.name} — Leader {challenge.gym.leader} ({capitalize(challenge.gym.element)}, Lv{" "}
+          {challenge.gym.level})
+        </p>
+        <BattleArena
+          playerTeam={challenge.playerTeam}
+          enemyTeam={challenge.enemy}
+          onFinish={handleFinish}
+        />
+        {result ? (
+          <div className="battle-log">
+            <h2 className="section-title">{result.won ? "Victory!" : "Defeat"}</h2>
+            <p>
+              Your creatures gained {result.xp} XP.
+              {result.levelUps.length > 0 ? " Level up!" : ""}
+            </p>
+            {result.levelUps.map((l) => (
+              <p key={l.label}>
+                {l.label} → Lv {l.level}
+              </p>
+            ))}
+            <button onClick={reset}>Back</button>
+          </div>
+        ) : null}
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -150,35 +165,13 @@ export function CampaignView({ gymProgress, creatures, onReportBattle, onBeatGym
               </button>
             ))}
           </div>
-          <button disabled={selectedIds.length < 1 || busy} onClick={challenge}>
+          <button disabled={selectedIds.length < 1} onClick={startChallenge}>
             Battle leader
           </button>
         </div>
       ) : (
         <p className="section-title">You have defeated every gym. Champion!</p>
       )}
-
-      {error ? <p className="error">{error}</p> : null}
-
-      {result ? (
-        <div className="battle-log">
-          <h2 className="section-title">{result.winner === 0 ? "Victory" : "Defeat"}</h2>
-          <p>
-            Your creatures gained {result.xp} XP.
-            {result.levelUps.length > 0 ? " Level up!" : ""}
-          </p>
-          {result.levelUps.map((l) => (
-            <p key={l.label}>
-              {l.label} → Lv {l.level}
-            </p>
-          ))}
-          <ol>
-            {result.log.map((e, i) => (
-              <li key={i}>{describe(e)}</li>
-            ))}
-          </ol>
-        </div>
-      ) : null}
     </div>
   );
 }
