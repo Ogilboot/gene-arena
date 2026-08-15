@@ -3,7 +3,7 @@ import type { Move } from "./data.js";
 import { typeEffectiveness } from "./elements.js";
 import type { Element } from "./elements.js";
 import type { Rng } from "./rng.js";
-import type { Creature, Stats } from "./types.js";
+import type { Creature, Stats, Status } from "./types.js";
 import { STAT_KEYS } from "./types.js";
 
 export interface Combatant {
@@ -12,6 +12,7 @@ export interface Combatant {
   stats: Stats;
   maxHp: number;
   hp: number;
+  status: Status | null;
 }
 
 export interface Team {
@@ -25,7 +26,8 @@ export type BattleEvent =
   | { type: "move"; side: Side; target: Side; moveId: number; damage: number; targetHp: number }
   | { type: "faint"; side: Side; index: number }
   | { type: "switch"; side: Side; index: number }
-  | { type: "win"; side: Side };
+  | { type: "win"; side: Side }
+  | { type: "status"; side: Side; status: Status; amount: number };
 
 export interface BattleState {
   teams: [Team, Team];
@@ -50,7 +52,7 @@ export function effectiveStats(creature: Creature, level: number): Stats {
 
 export function createCombatant(creature: Creature, level = creature.level): Combatant {
   const stats = effectiveStats(creature, level);
-  return { creature, level, stats, maxHp: stats.hp, hp: stats.hp };
+  return { creature, level, stats, maxHp: stats.hp, hp: stats.hp, status: null };
 }
 
 export function createBattle(teamA: Creature[], teamB: Creature[], level = 50): BattleState {
@@ -122,7 +124,8 @@ export function calcDamage(
   move: Move,
   variance = 1,
 ): number {
-  const atk = move.category === "physical" ? attacker.stats.atk : attacker.stats.spa;
+  const burnMod = move.category === "physical" && attacker.status === "burn" ? 0.5 : 1;
+  const atk = (move.category === "physical" ? attacker.stats.atk : attacker.stats.spa) * burnMod;
   const def = move.category === "physical" ? defender.stats.def : defender.stats.spd;
   const levelFactor = (2 * attacker.level) / 5 + 2;
   const base = (levelFactor * move.power * (atk / def)) / 50 + 2;
@@ -143,6 +146,7 @@ export function speedOf(c: Combatant): number {
       if (c.hp * 2 <= c.maxHp) s = 100000;
       break;
   }
+  if (c.status === "paralyze") s *= 0.5;
   return s;
 }
 
@@ -158,6 +162,32 @@ export function chooseBestMove(c: Combatant, opponent: Combatant): number {
     }
   }
   return best;
+}
+
+function tryApplyStatus(
+  state: BattleState,
+  targetSide: Side,
+  status: Status,
+  chancePct: number,
+  rng: Rng,
+): void {
+  const target = activeCombatant(state, targetSide);
+  if (target.status !== null) return;
+  if (target.creature.phenotype.ability === 14) return;
+  if (rng() * 100 < chancePct) target.status = status;
+}
+
+function handleFaint(state: BattleState, side: Side): void {
+  const team = state.teams[side];
+  state.log.push({ type: "faint", side, index: team.activeIndex });
+  const next = team.combatants.findIndex((c, i) => i > team.activeIndex && c.hp > 0);
+  if (next === -1) {
+    state.winner = side === 0 ? 1 : 0;
+    state.log.push({ type: "win", side: state.winner });
+  } else {
+    team.activeIndex = next;
+    state.log.push({ type: "switch", side, index: next });
+  }
 }
 
 function applyDamage(
@@ -189,17 +219,14 @@ function applyDamage(
     targetHp: target.hp,
   });
 
-  if (target.hp <= 0) {
-    state.log.push({ type: "faint", side: targetSide, index: team.activeIndex });
-    const next = team.combatants.findIndex((c, i) => i > team.activeIndex && c.hp > 0);
-    if (next === -1) {
-      state.winner = attackerSide;
-      state.log.push({ type: "win", side: attackerSide });
-    } else {
-      team.activeIndex = next;
-      state.log.push({ type: "switch", side: targetSide, index: next });
-    }
-  }
+  if (target.hp <= 0) handleFaint(state, targetSide);
+}
+
+function applyHpChange(state: BattleState, side: Side, delta: number): void {
+  const team = state.teams[side];
+  const target = team.combatants[team.activeIndex]!;
+  target.hp = Math.max(0, Math.min(target.maxHp, target.hp + delta));
+  if (target.hp <= 0) handleFaint(state, side);
 }
 
 export function resolveTurn(
@@ -219,6 +246,11 @@ export function resolveTurn(
     const actor = side === 0 ? actorA : actorB;
     if (actor.hp <= 0) continue;
 
+    if (actor.status === "paralyze" && rng() < 0.25) {
+      state.log.push({ type: "status", side, status: "paralyze", amount: 0 });
+      continue;
+    }
+
     const targetSide = (1 - side) as Side;
     const defender = activeCombatant(state, targetSide);
     const move = moveById(side === 0 ? moveA : moveB);
@@ -226,6 +258,36 @@ export function resolveTurn(
     const hit = rng() * 100 < move.accuracy;
     const damage = hit ? calcDamage(actor, defender, move, variance) : 0;
     applyDamage(state, side, targetSide, move.id, damage);
+
+    if (hit) {
+      if (move.status && move.statusChance) {
+        tryApplyStatus(state, targetSide, move.status, move.statusChance, rng);
+      }
+      if (actor.creature.phenotype.ability === 8 && move.category === "physical") {
+        tryApplyStatus(state, targetSide, "poison", 10, rng);
+      }
+      if (defender.creature.phenotype.ability === 9 && move.category === "physical") {
+        tryApplyStatus(state, side, "paralyze", 10, rng);
+      }
+    }
+  }
+
+  for (const side of [0, 1] as Side[]) {
+    if (state.winner !== null) break;
+    const c = activeCombatant(state, side);
+    if (c.status === "poison") {
+      const amount = Math.max(1, Math.floor(c.maxHp / 8));
+      state.log.push({ type: "status", side, status: "poison", amount });
+      applyHpChange(state, side, -amount);
+    } else if (c.status === "burn") {
+      const amount = Math.max(1, Math.floor(c.maxHp / 16));
+      state.log.push({ type: "status", side, status: "burn", amount });
+      applyHpChange(state, side, -amount);
+    }
+    const alive = activeCombatant(state, side);
+    if (alive.creature.phenotype.ability === 11 && alive.hp > 0 && alive.hp < alive.maxHp) {
+      applyHpChange(state, side, Math.floor(alive.maxHp / 20));
+    }
   }
 
   state.turn += 1;

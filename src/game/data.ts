@@ -1,4 +1,5 @@
 import type { Element } from "./elements.js";
+import type { Status } from "./types.js";
 
 export interface Ability {
   id: number;
@@ -33,19 +34,21 @@ export interface Move {
   power: number;
   category: MoveCategory;
   accuracy: number;
+  status?: Status;
+  statusChance?: number;
 }
 
 export const MOVES: Move[] = [
-  { id: 0, name: "Ember", element: "fire", power: 40, category: "special", accuracy: 100 },
+  { id: 0, name: "Ember", element: "fire", power: 40, category: "special", accuracy: 100, status: "burn", statusChance: 10 },
   { id: 1, name: "Torrent", element: "water", power: 40, category: "special", accuracy: 100 },
   { id: 2, name: "Vine Whip", element: "grass", power: 45, category: "physical", accuracy: 100 },
-  { id: 3, name: "Spark", element: "electric", power: 40, category: "physical", accuracy: 100 },
+  { id: 3, name: "Spark", element: "electric", power: 40, category: "physical", accuracy: 100, status: "paralyze", statusChance: 10 },
   { id: 4, name: "Rock Throw", element: "rock", power: 50, category: "physical", accuracy: 90 },
-  { id: 5, name: "Frostbite", element: "ice", power: 40, category: "special", accuracy: 100 },
+  { id: 5, name: "Frostbite", element: "ice", power: 40, category: "special", accuracy: 100, status: "paralyze", statusChance: 15 },
   { id: 6, name: "Gust", element: "wind", power: 40, category: "special", accuracy: 100 },
   { id: 7, name: "Tremor", element: "ground", power: 50, category: "physical", accuracy: 100 },
   { id: 8, name: "Glint", element: "light", power: 40, category: "special", accuracy: 100 },
-  { id: 9, name: "Shadow Strike", element: "dark", power: 45, category: "physical", accuracy: 100 },
+  { id: 9, name: "Shadow Strike", element: "dark", power: 45, category: "physical", accuracy: 100, status: "poison", statusChance: 15 },
   { id: 10, name: "Blaze", element: "fire", power: 65, category: "special", accuracy: 95 },
   { id: 11, name: "Hydro Pump", element: "water", power: 70, category: "special", accuracy: 90 },
   { id: 12, name: "Leaf Blade", element: "grass", power: 70, category: "physical", accuracy: 95 },

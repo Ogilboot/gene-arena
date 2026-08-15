@@ -36,6 +36,11 @@ function describe(e: BattleEvent): string {
       return `${e.side === 0 ? "You" : "Enemy"} sent out creature #${e.index + 1}`;
     case "win":
       return e.side === 0 ? "You win!" : "Enemy wins!";
+    case "status":
+      if (e.status === "paralyze") {
+        return `${e.side === 0 ? "Your" : "Enemy"} creature was fully paralyzed and couldn't move`;
+      }
+      return `${e.side === 0 ? "Your" : "Enemy"} creature took ${e.amount} ${e.status} damage`;
   }
 }
 

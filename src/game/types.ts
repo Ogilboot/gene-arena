@@ -14,6 +14,8 @@ export type Stats = Record<StatKey, number>;
 
 export type Rarity = "common" | "uncommon" | "rare" | "epic" | "legendary";
 
+export type Status = "poison" | "burn" | "paralyze";
+
 export interface Phenotype {
   elements: [Element, Element];
   stats: Stats;
